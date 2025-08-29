@@ -24,7 +24,7 @@ pub const Format = struct {
 
 pub const FormatOptions = struct {
   input: Format = Format.default,
-  output: Format = Format { .type = .space, .len = 2 },
+  output: Format = Format.default,
 
   pub fn toSpaces(len: u8) FormatOptions {
     return FormatOptions {
@@ -84,7 +84,7 @@ test "formatLine() outputs line if no indentation is detected" {
   var buf: [line.len]u8 = undefined;
 
   // act
-  const result = try formatLine(line, &buf, .{});
+  const result = try formatLine(line, &buf, FormatOptions.toSpaces(2));
 
   // assert
   try std.testing.expectEqualSlices(u8, line, result);
@@ -97,7 +97,7 @@ test "formatLine() changes indent from 4 to 2 spaces" {
   var buf: [line.len]u8 = undefined;
 
   // act
-  const result = try formatLine(line, &buf, .{});
+  const result = try formatLine(line, &buf, FormatOptions.toSpaces(2));
 
   // assert
   try std.testing.expectEqualSlices(u8, expected, result);
@@ -110,10 +110,36 @@ test "formatLine() changes indent from 8 to 4 spaces" {
   var buf: [line.len]u8 = undefined;
 
   // act
-  const result = try formatLine(line, &buf, .{});
+  const result = try formatLine(line, &buf, FormatOptions.toSpaces(2));
 
   // assert
   try std.testing.expectEqualSlices(u8, expected, result);
+}
+
+test "formatLine() fails if line is not correctly formatted" {
+  // arrange
+  const line = "   // The root source file is the \"entry point\" of this module. Users of";
+  const expected_error = FormatError.InputFormatError;
+  var buf: [line.len]u8 = undefined;
+
+  // act
+  const result = formatLine(line, &buf, .{});
+
+  // assert
+  try std.testing.expectError(expected_error, result);
+}
+
+test "formatLine() fails if buf is not large enough" {
+  // arrange
+  const line = "    // The root source file is the \"entry point\" of this module. Users of";
+  const expected_error = FormatError.NoSpaceLeft;
+  var buf: [line.len]u8 = undefined;
+
+  // act
+  const result = formatLine(line, &buf, FormatOptions.toSpaces(8));
+
+  // assert
+  try std.testing.expectError(expected_error, result);
 }
 
 fn getIndentationCharLength(indent: u8, line: []const u8) usize {
