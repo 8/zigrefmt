@@ -1,14 +1,16 @@
 const std = @import("std");
 const postfmt = @import("postfmt");
 
-const Error =
-  postfmt.FormatError ||
-  std.process.Child.RunError ||
-  std.fs.File.OpenError ||
-  std.fs.Dir.StatError ||
-  std.io.Reader.DelimiterError ||
-  std.io.Writer.Error ||
-  error { ZigFormatError, ArgError };
+// const Error =
+//   postfmt.FormatError ||
+//   std.process.Child.RunError ||
+//   std.fs.File.OpenError ||
+//   std.fs.Dir.StatError ||
+//   std.io.Reader.DelimiterError ||
+//   std.io.Writer.Error ||
+//   error { ZigFormatError, ArgError };
+
+const Error =  error { ZigFormatError, ArgError };
 
 pub fn main() !void {
 
@@ -50,7 +52,7 @@ fn getFile(allocator: std.mem.Allocator) !?[]const u8 {
 }
 
 /// execute `zig fmt` with the provided file/directory
-fn execZigFmt(allocator: std.mem.Allocator, file: []const u8) Error!void {
+fn execZigFmt(allocator: std.mem.Allocator, file: []const u8) anyerror!void {
 
   // const argv: [3][]const u8 = .{"zig", "fmt", file};
   const argv = [_][]const u8{"zig", "fmt", file};
@@ -79,7 +81,7 @@ fn isZigFile(file: []const u8) bool {
   return std.mem.eql(u8, ".zig", std.fs.path.extension(file));
 }
 
-fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: postfmt.FormatOptions) Error!void {
+fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: postfmt.FormatOptions) anyerror!void {
 
   const file_or_directory = try dir.openFile(path, .{});
   defer file_or_directory.close();
@@ -93,7 +95,7 @@ fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: postfmt.Form
   };
 }
 
-fn fixIndentationForDirectory(directory: std.fs.Dir, format: postfmt.FormatOptions) Error!void {
+fn fixIndentationForDirectory(directory: std.fs.Dir, format: postfmt.FormatOptions) anyerror!void {
 
   // std.debug.print("directory\n", .{});
   var iterator = directory.iterate();
@@ -109,7 +111,7 @@ fn fixIndentationForDirectory(directory: std.fs.Dir, format: postfmt.FormatOptio
   }
 }
 
-fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.Dir, format: postfmt.FormatOptions) Error!void {
+fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.Dir, format: postfmt.FormatOptions) !void {
 
   const line_buf_len = 1024 * 8;
 
@@ -140,4 +142,9 @@ fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.
       return err;
   }
   try writer.interface.flush();
+
+  // replace the old file with the new file
+  _ = try std.fs.Dir.updateFile(dir, temp_file_name, dir, name, .{});
+
+  try dir.deleteFile(temp_file_name);
 }
