@@ -1,7 +1,12 @@
 const std = @import("std");
 const postfmt = @import("postfmt");
 
-const Error = postfmt.FormatError || std.process.Child.RunError || error { ZigFormatError, ArgError };
+const Error = postfmt.FormatError ||
+                    std.process.Child.RunError ||
+                    std.fs.File.OpenError ||
+                    std.fs.Dir.StatError ||
+                    std.io.Reader.DelimiterError ||
+                    error { ZigFormatError, ArgError };
 
 pub fn main() !void {
 
@@ -17,7 +22,8 @@ pub fn main() !void {
     try execZigFmt(allocator, file);
 
     // then fix the identation
-    try fixIndentation(file);
+    const dir = std.fs.cwd();
+    try fixIndentationForPath(dir, file);
 
   } else {
     std.debug.print("error: expected at least one source file argument\n", .{});
@@ -40,10 +46,11 @@ fn getFile(allocator: std.mem.Allocator) !?[]const u8 {
   return null;
 }
 
-/// execute `zig fmt` in the current directory
+/// execute `zig fmt` with the provided file/directory
 fn execZigFmt(allocator: std.mem.Allocator, file: []const u8) Error!void {
 
-  const argv: [3][]const u8 = .{"zig", "fmt", file};
+  // const argv: [3][]const u8 = .{"zig", "fmt", file};
+  const argv = [_][]const u8{"zig", "fmt", file};
 
   const result = try std.process.Child.run(.{
     .allocator = allocator,
@@ -65,7 +72,52 @@ fn execZigFmt(allocator: std.mem.Allocator, file: []const u8) Error!void {
   // });
 }
 
-fn fixIndentation(file: []const u8) !void{
+fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8) Error!void {
 
-  _ = file;
+  const file_or_directory = try dir.openFile(path, .{});
+  defer file_or_directory.close();
+
+  const stat = try file_or_directory.stat();
+
+  return switch (stat.kind) {
+    .directory => fixIndentationForDirectory(std.fs.Dir { .fd = file_or_directory.handle } ),
+    .file => fixIndentationForFile(file_or_directory),
+    else => {},
+  };
+}
+
+fn fixIndentationForDirectory(directory: std.fs.Dir) Error!void {
+
+  // std.debug.print("directory\n", .{});
+  var iterator = directory.iterate();
+  while (iterator.next()) |maybe_entry| {
+    if (maybe_entry) |entry| {
+      // std.debug.print("{s}\n", .{entry.name});
+      try fixIndentationForPath(directory, entry.name);
+    } else {
+      return;
+    }
+  } else |err| {
+    return err;
+  }
+}
+
+fn fixIndentationForFile(input_file: std.fs.File) std.io.Reader.DelimiterError!void {
+
+  var line_read_buffer: [1024*8] u8 = undefined;
+  var reader = input_file.reader(&line_read_buffer);
+
+  // create a new temp file for writing
+  // std.fs.createFileAbsolute(absolute_path: []const u8, flags: CreateFlags)
+  // const 
+  // std.zip.
+  // dir.createFile(, flags: CreateFlags)
+
+  // read the file line by line
+  while (reader.interface.takeDelimiterInclusive('\n')) |line| {
+    std.debug.print("{s}", .{line});
+  } else |err|{
+    if (err != error.EndOfStream)
+      return err;
+  }
 }
