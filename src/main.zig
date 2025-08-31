@@ -66,7 +66,7 @@ fn execZigFmt(allocator: std.mem.Allocator, file: []const u8) anyerror!void {
 
 fn isZigFile(file: []const u8) bool {
   const extension = std.fs.path.extension(file);
-  return std.mem.eql(u8, ".zig", extension) ||
+  return std.mem.eql(u8, ".zig", extension) or
          std.mem.eql(u8, ".zon", extension);
 }
 
