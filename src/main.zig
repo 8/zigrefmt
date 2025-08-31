@@ -1,15 +1,5 @@
 const std = @import("std");
 const zigrefmt = @import("zigrefmt");
-
-// const Error =
-//   zigrefmt.FormatError ||
-//   std.process.Child.RunError ||
-//   std.fs.File.OpenError ||
-//   std.fs.Dir.StatError ||
-//   std.io.Reader.DelimiterError ||
-//   std.io.Writer.Error ||
-//   error { ZigFormatError, ArgError };
-
 const Error =  error { ZigFormatError, ArgError };
 
 pub fn main() !void {
@@ -27,7 +17,10 @@ pub fn main() !void {
 
     // then fix the identation
     const dir = std.fs.cwd();
+
+    // todo: parse the format from the commandline options
     const format = zigrefmt.FormatOptions.toSpaces(2);
+
     try fixIndentationForPath(dir, file, format);
 
   } else {
@@ -69,16 +62,12 @@ fn execZigFmt(allocator: std.mem.Allocator, file: []const u8) anyerror!void {
   if (result.term.Exited != 0) {
     return Error.ZigFormatError;
   }
-
-  // std.debug.print("exited: {}\nstdout: {s}\nstderr:{s}\n", .{
-  //   result.term.Exited,
-  //   result.stdout,
-  //   result.stderr
-  // });
 }
 
 fn isZigFile(file: []const u8) bool {
-  return std.mem.eql(u8, ".zig", std.fs.path.extension(file));
+  const extension = std.fs.path.extension(file);
+  return std.mem.eql(u8, ".zig", extension) ||
+         std.mem.eql(u8, ".zon", extension);
 }
 
 fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: zigrefmt.FormatOptions) anyerror!void {
@@ -89,6 +78,7 @@ fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: zigrefmt.For
   const stat = try file_or_directory.stat();
 
   return switch (stat.kind) {
+    // if it's a directory instead of a file, use Dir instead of File
     .directory => fixIndentationForDirectory(std.fs.Dir { .fd = file_or_directory.handle }, format),
     .file => if (isZigFile(path)) { try fixIndentationForFile(file_or_directory, path, dir, format); },
     else => {},
@@ -97,11 +87,9 @@ fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: zigrefmt.For
 
 fn fixIndentationForDirectory(directory: std.fs.Dir, format: zigrefmt.FormatOptions) anyerror!void {
 
-  // std.debug.print("directory\n", .{});
   var iterator = directory.iterate();
   while (iterator.next()) |maybe_entry| {
     if (maybe_entry) |entry| {
-      // std.debug.print("{s}\n", .{entry.name});
       try fixIndentationForPath(directory, entry.name, format);
     } else {
       return;
@@ -112,7 +100,8 @@ fn fixIndentationForDirectory(directory: std.fs.Dir, format: zigrefmt.FormatOpti
 }
 
 fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.Dir, format: zigrefmt.FormatOptions) !void {
-
+  // todo: pass the buffers into the function
+  // todo: move the function to root.zig to make it reusable
   const line_buf_len = 1024 * 8;
 
   var line_read_buffer: [line_buf_len] u8 = undefined;
@@ -121,21 +110,18 @@ fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.
   // create a new temp file for writing in the same directory
   var temp_file_name_buf: [1024]u8 = undefined;
   const temp_file_name = try std.fmt.bufPrint(&temp_file_name_buf, ".{s}.bak", .{ name });
-
-  // std.debug.print("creating temp file: '{s}'\n", .{temp_file_name});
-
   const temp_file = try dir.createFile(temp_file_name, .{.lock = .exclusive });
   defer temp_file.close();
 
   var line_write_buffer: [line_buf_len] u8 = undefined;
   var writer = temp_file.writer(&line_write_buffer);
-
   var format_line_buffer: [line_buf_len] u8 = undefined;
 
-  // read the file line by line
+  // read the file line by line...
   while (reader.interface.takeDelimiterInclusive('\n')) |line| {
-    // std.debug.print("{s}", .{line});
+    // ...format it...
     const formatted_line = try zigrefmt.formatLine(line, &format_line_buffer, format);
+    // ... and write it to the temp. file
     try writer.interface.writeAll(formatted_line);
   } else |err|{
     if (err != error.EndOfStream)
@@ -143,8 +129,9 @@ fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.
   }
   try writer.interface.flush();
 
-  // replace the old file with the new file
+  // now replace the old file with the new file
   _ = try std.fs.Dir.updateFile(dir, temp_file_name, dir, name, .{});
 
+  // and remove the temp file
   try dir.deleteFile(temp_file_name);
 }
