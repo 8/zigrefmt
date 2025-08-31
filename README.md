@@ -10,5 +10,11 @@ This way, it does not need to parse zig source code in any way, it just needs to
 ## Build
 Execute `zig build --release=small` to build the executable for your platform.
 
+## Build & Install
+To install into ~/.local/bin/zigrefmt
+```sh
+zig build install --release=fast --prefix ~/.local
+```
+
 ## Test
 Execute `zig build test` to run the tests.
