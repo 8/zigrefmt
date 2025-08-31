@@ -1,6 +1,7 @@
 const std = @import("std");
 const clap = @import("clap");
 
+// todo: add arguments for tabs / spaces
 const params = clap.parseParamsComptime(
   \\-h, --help
   \\        Display this help and exit.
