@@ -1,5 +1,8 @@
 const std = @import("std");
 const zigrefmt = @import("zigrefmt");
+const args = @import("args.zig");
+const clap = @import("clap");
+
 const Error =  error { ZigFormatError, ArgError };
 
 pub fn main() !void {
@@ -8,40 +11,34 @@ pub fn main() !void {
   const allocator = gpa.allocator();
   defer _ = gpa.deinit();
 
-  const maybe_file = try getFile(allocator);
+  // parse the arguments
+  const res = try args.get(allocator);
+  defer res.deinit();
 
-  if (maybe_file) |file| {
-
-    // first call `zig fmt` to format all files
-    try execZigFmt(allocator, file);
-
-    // then fix the identation
-    const dir = std.fs.cwd();
-
-    // todo: parse the format from the commandline options
-    const format = zigrefmt.FormatOptions.toSpaces(2);
-
-    try fixIndentationForPath(dir, file, format);
-
+  if (res.args.help != 0) {
+    try args.printUsage();
   } else {
-    std.debug.print("error: expected at least one source file argument\n", .{});
-    return error.ArgError;
-  }
-}
+    const files = res.positionals[0];
+    if (files.len > 0) {
 
-fn getFile(allocator: std.mem.Allocator) !?[]const u8 {
-  var args = try std.process.argsWithAllocator(allocator);
-  defer args.deinit();
+      for (files) |file| {
 
-  var i: usize = 0;
-  while (args.next()) |arg| {
-    if (i == 1) {
-      return arg;
+        // first call `zig fmt` to format all files
+        try execZigFmt(allocator, file);
+
+        // then fix the identation
+        const dir = std.fs.cwd();
+
+        // todo: parse the format from the commandline options
+        const format = zigrefmt.FormatOptions.toSpaces(2);
+
+        try fixIndentationForPath(dir, file, format);
+      }
+    } else {
+      std.debug.print("error: expected at least one source file argument\n", .{});
+      return error.ArgError;
     }
-    i=i+1;
   }
-
-  return null;
 }
 
 /// execute `zig fmt` with the provided file/directory
