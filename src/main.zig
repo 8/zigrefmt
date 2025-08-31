@@ -1,8 +1,8 @@
 const std = @import("std");
-const postfmt = @import("postfmt");
+const zigrefmt = @import("zigrefmt");
 
 // const Error =
-//   postfmt.FormatError ||
+//   zigrefmt.FormatError ||
 //   std.process.Child.RunError ||
 //   std.fs.File.OpenError ||
 //   std.fs.Dir.StatError ||
@@ -27,7 +27,7 @@ pub fn main() !void {
 
     // then fix the identation
     const dir = std.fs.cwd();
-    const format = postfmt.FormatOptions.toSpaces(2);
+    const format = zigrefmt.FormatOptions.toSpaces(2);
     try fixIndentationForPath(dir, file, format);
 
   } else {
@@ -81,7 +81,7 @@ fn isZigFile(file: []const u8) bool {
   return std.mem.eql(u8, ".zig", std.fs.path.extension(file));
 }
 
-fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: postfmt.FormatOptions) anyerror!void {
+fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: zigrefmt.FormatOptions) anyerror!void {
 
   const file_or_directory = try dir.openFile(path, .{});
   defer file_or_directory.close();
@@ -95,7 +95,7 @@ fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: postfmt.Form
   };
 }
 
-fn fixIndentationForDirectory(directory: std.fs.Dir, format: postfmt.FormatOptions) anyerror!void {
+fn fixIndentationForDirectory(directory: std.fs.Dir, format: zigrefmt.FormatOptions) anyerror!void {
 
   // std.debug.print("directory\n", .{});
   var iterator = directory.iterate();
@@ -111,7 +111,7 @@ fn fixIndentationForDirectory(directory: std.fs.Dir, format: postfmt.FormatOptio
   }
 }
 
-fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.Dir, format: postfmt.FormatOptions) !void {
+fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.Dir, format: zigrefmt.FormatOptions) !void {
 
   const line_buf_len = 1024 * 8;
 
@@ -122,7 +122,7 @@ fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.
   var temp_file_name_buf: [1024]u8 = undefined;
   const temp_file_name = try std.fmt.bufPrint(&temp_file_name_buf, ".{s}.bak", .{ name });
 
-  std.debug.print("creating temp file: '{s}'\n", .{temp_file_name});
+  // std.debug.print("creating temp file: '{s}'\n", .{temp_file_name});
 
   const temp_file = try dir.createFile(temp_file_name, .{.lock = .exclusive });
   defer temp_file.close();
@@ -135,7 +135,7 @@ fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.
   // read the file line by line
   while (reader.interface.takeDelimiterInclusive('\n')) |line| {
     // std.debug.print("{s}", .{line});
-    const formatted_line = try postfmt.formatLine(line, &format_line_buffer, format);
+    const formatted_line = try zigrefmt.formatLine(line, &format_line_buffer, format);
     try writer.interface.writeAll(formatted_line);
   } else |err|{
     if (err != error.EndOfStream)
