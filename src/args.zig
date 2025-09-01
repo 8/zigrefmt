@@ -1,14 +1,15 @@
 const std = @import("std");
 const clap = @import("clap");
 
-// todo: add arguments for tabs / spaces
 const params = clap.parseParamsComptime(
-  \\-h, --help
-  \\        Display this help and exit.
-  \\<file>...
+  \\-h, --help           Display this help and exit.
+  \\-s, --spaces <int>   The number of spaces to use as the indent size.
+  \\-t, --tabs <int>     The number of tabs to use as the indent size.
+  \\<file>               The file or directory to format.
 );
 
 const parsers = .{
+  .int = clap.parsers.int(usize, 10),
   .file = clap.parsers.string,
 };
 
@@ -34,6 +35,8 @@ pub fn printUsage() !void {
     \\    Formats the input files and modifies them in-place.
     \\    Arguments can be files or directories, which are searched
     \\    recursively.
+    \\
+    \\    Only formats .zig or .zon files.
     \\
     \\Options:
     \\

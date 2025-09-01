@@ -21,8 +21,16 @@ pub fn main() !void {
   } else {
     if (res.positionals[0]) |file_or_directory| {
 
-      // todo: parse the format from the commandline options
-      const format = zigrefmt.FormatOptions.toSpaces(2);
+      // parse the format from the commandline options
+      const format = 
+        if (res.args.spaces) |spaces|
+          zigrefmt.FormatOptions.toSpaces(spaces)
+        else if (res.args.tabs) |tabs|
+          zigrefmt.FormatOptions.toTabs(tabs)
+        else {
+          std.debug.print("error: expected --tabs or --spaces argument\n", .{});
+          return error.ArgError;
+        };
 
       try formatFiles(allocator, file_or_directory, format);
     } else {

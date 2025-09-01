@@ -26,7 +26,7 @@ pub const FormatOptions = struct {
   input: Format = Format.default,
   output: Format = Format.default,
 
-  pub fn toSpaces(len: u8) FormatOptions {
+  pub fn toSpaces(len: usize) FormatOptions {
     return FormatOptions {
       .output = Format {
         .type = .space,
@@ -35,7 +35,7 @@ pub const FormatOptions = struct {
     };
   }
 
-  pub fn toTabs(len: u8) FormatOptions {
+  pub fn toTabs(len: usize) FormatOptions {
     return FormatOptions {
       .output = Format {
         .type = .tab,
