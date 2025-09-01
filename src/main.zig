@@ -15,36 +15,37 @@ pub fn main() !void {
   const res = try args.get(allocator);
   defer res.deinit();
 
+  // todo: how can we combine commandline args with env vars and config files?
   if (res.args.help != 0) {
     try args.printUsage();
   } else {
-    const files = res.positionals[0];
-    if (files.len > 0) {
+    if (res.positionals[0]) |file_or_directory| {
 
-      for (files) |file| {
+      // todo: parse the format from the commandline options
+      const format = zigrefmt.FormatOptions.toSpaces(2);
 
-        // first call `zig fmt` to format all files
-        try execZigFmt(allocator, file);
-
-        // then fix the identation
-        const dir = std.fs.cwd();
-
-        // todo: parse the format from the commandline options
-        const format = zigrefmt.FormatOptions.toSpaces(2);
-
-        try fixIndentationForPath(dir, file, format);
-      }
+      try formatFiles(allocator, file_or_directory, format);
     } else {
       std.debug.print("error: expected at least one source file argument\n", .{});
+      try args.printUsage();
       return error.ArgError;
     }
   }
 }
 
+fn formatFiles(allocator: std.mem.Allocator, file_or_directory: []const u8, format: zigrefmt.FormatOptions) !void {
+
+  // first call `zig fmt` to format all files
+  try execZigFmt(allocator, file_or_directory);
+
+  // then fix the identation
+  const dir = std.fs.cwd();
+  try fixIndentationForPath(dir, file_or_directory, format);
+}
+
 /// execute `zig fmt` with the provided file/directory
 fn execZigFmt(allocator: std.mem.Allocator, file: []const u8) anyerror!void {
 
-  // const argv: [3][]const u8 = .{"zig", "fmt", file};
   const argv = [_][]const u8{"zig", "fmt", file};
 
   const result = try std.process.Child.run(.{
@@ -75,9 +76,11 @@ fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: zigrefmt.For
   const stat = try file_or_directory.stat();
 
   return switch (stat.kind) {
-    // if it's a directory instead of a file, use Dir instead of File
+    // if it's a directory instead of a file, use `Dir` instead of `File`
     .directory => fixIndentationForDirectory(std.fs.Dir { .fd = file_or_directory.handle }, format),
-    .file => if (isZigFile(path)) { try fixIndentationForFile(file_or_directory, path, dir, format); },
+    .file => if (isZigFile(path)) {
+      try fixIndentationForFile(file_or_directory, path, dir, format);
+    },
     else => {},
   };
 }
@@ -97,8 +100,8 @@ fn fixIndentationForDirectory(directory: std.fs.Dir, format: zigrefmt.FormatOpti
 }
 
 fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.Dir, format: zigrefmt.FormatOptions) !void {
-  // todo: pass the buffers into the function
-  // todo: move the function to root.zig to make it reusable
+  // todo: pass the buffers into the function?
+  // todo: move the function to root.zig to make it reusable?
   const line_buf_len = 1024 * 8;
 
   var line_read_buffer: [line_buf_len] u8 = undefined;
