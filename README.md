@@ -7,6 +7,12 @@ This tool (`zigrefmt`) tries to reformat zig source code files from zigs default
 First it runs `zig fmt` itself, so that the source code is already formatted using zig's default indentation settings.
 This way, it does not need to parse zig source code in any way, it just needs to read in the files line by line, detect the indentation level and reformat it according to the supplied parameters.
 
+## Example Usage
+```sh
+zigrefmt . -s 2
+```
+Formats all files in the current folder and it's subfolders using an indentation of 2 spaces.
+
 ## Build
 Execute `zig build --release=small` to build the executable for your platform.
 

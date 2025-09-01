@@ -38,6 +38,10 @@ pub fn printUsage() !void {
     \\
     \\    Only formats .zig or .zon files.
     \\
+    \\Example: zigrefmt . -s 2
+    \\    Formats all files in the current folder and it's subfolders
+    \\    using an indentation of 2 spaces.
+    \\
     \\Options:
     \\
   );
