@@ -5,19 +5,18 @@ const clap = @import("clap");
 
 const Error =  error { ZigFormatError, ArgError };
 
-pub fn main() !void {
+pub fn main(init: std.process.Init) !void {
 
-  var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-  const allocator = gpa.allocator();
-  defer _ = gpa.deinit();
+  const allocator = init.gpa;
+  const io = init.io;
 
   // parse the arguments
-  const res = try args.get(allocator);
+  const res = try args.get(io, init.minimal.args, allocator);
   defer res.deinit();
 
   // todo: how can we combine commandline args with env vars and config files?
   if (res.args.help != 0) {
-    try args.printUsage();
+    try args.printUsage(io);
   } else {
     if (res.positionals[0]) |file_or_directory| {
 
@@ -32,32 +31,31 @@ pub fn main() !void {
           return error.ArgError;
         };
 
-      try formatFiles(allocator, file_or_directory, format);
+      try formatFiles(allocator, io, file_or_directory, format);
     } else {
       std.debug.print("error: expected at least one source file argument\n", .{});
-      try args.printUsage();
+      try args.printUsage(io);
       return error.ArgError;
     }
   }
 }
 
-fn formatFiles(allocator: std.mem.Allocator, file_or_directory: []const u8, format: zigrefmt.FormatOptions) !void {
+fn formatFiles(allocator: std.mem.Allocator, io: std.Io, file_or_directory: []const u8, format: zigrefmt.FormatOptions) !void {
 
   // first call `zig fmt` to format all files
-  try execZigFmt(allocator, file_or_directory);
+  try execZigFmt(allocator, io, file_or_directory);
 
   // then fix the identation
-  const dir = std.fs.cwd();
-  try fixIndentationForPath(dir, file_or_directory, format);
+  const dir = std.Io.Dir.cwd();
+  try fixIndentationForPath(io, dir, file_or_directory, format);
 }
 
 /// execute `zig fmt` with the provided file/directory
-fn execZigFmt(allocator: std.mem.Allocator, file: []const u8) anyerror!void {
+fn execZigFmt(allocator: std.mem.Allocator, io: std.Io, file: []const u8) anyerror!void {
 
   const argv = [_][]const u8{"zig", "fmt", file};
 
-  const result = try std.process.Child.run(.{
-    .allocator = allocator,
+  const result = try std.process.run(allocator, io, .{
     .argv = &argv,
   });
   defer {
@@ -65,64 +63,58 @@ fn execZigFmt(allocator: std.mem.Allocator, file: []const u8) anyerror!void {
     allocator.free(result.stderr);
   }
 
-  if (result.term.Exited != 0) {
+  if (!result.term.success()) {
     return Error.ZigFormatError;
   }
 }
 
 fn isZigFile(file: []const u8) bool {
-  const extension = std.fs.path.extension(file);
+  const extension = std.Io.Dir.path.extension(file);
   return std.mem.eql(u8, ".zig", extension) or
          std.mem.eql(u8, ".zon", extension);
 }
 
-fn fixIndentationForPath(dir: std.fs.Dir, path: []const u8, format: zigrefmt.FormatOptions) anyerror!void {
+fn fixIndentationForPath(io: std.Io, dir: std.Io.Dir, path: []const u8, format: zigrefmt.FormatOptions) anyerror!void {
 
-  const file_or_directory = try dir.openFile(path, .{});
-  defer file_or_directory.close();
+  const file_or_directory = try dir.openFile(io, path, .{});
+  defer file_or_directory.close(io);
 
-  const stat = try file_or_directory.stat();
+  const stat = try file_or_directory.stat(io);
 
   return switch (stat.kind) {
     // if it's a directory instead of a file, use `Dir` instead of `File`
-    .directory => fixIndentationForDirectory(std.fs.Dir { .fd = file_or_directory.handle }, format),
+    .directory => fixIndentationForDirectory(io, .{ .handle = file_or_directory.handle }, format),
     .file => if (isZigFile(path)) {
-      try fixIndentationForFile(file_or_directory, path, dir, format);
+      try fixIndentationForFile(io, file_or_directory, path, dir, format);
     },
     else => {},
   };
 }
 
-fn fixIndentationForDirectory(directory: std.fs.Dir, format: zigrefmt.FormatOptions) anyerror!void {
+fn fixIndentationForDirectory(io: std.Io, directory: std.Io.Dir, format: zigrefmt.FormatOptions) anyerror!void {
 
   var iterator = directory.iterate();
-  while (iterator.next()) |maybe_entry| {
-    if (maybe_entry) |entry| {
-      try fixIndentationForPath(directory, entry.name, format);
-    } else {
-      return;
-    }
-  } else |err| {
-    return err;
+  while (try iterator.next(io)) |entry| {
+    try fixIndentationForPath(io, directory, entry.name, format);
   }
 }
 
-fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.Dir, format: zigrefmt.FormatOptions) !void {
+fn fixIndentationForFile(io: std.Io, input_file: std.Io.File, name: []const u8, dir: std.Io.Dir, format: zigrefmt.FormatOptions) !void {
   // todo: pass the buffers into the function?
   // todo: move the function to root.zig to make it reusable?
   const line_buf_len = 1024 * 8;
 
   var line_read_buffer: [line_buf_len] u8 = undefined;
-  var reader = input_file.reader(&line_read_buffer);
+  var reader = input_file.reader(io, &line_read_buffer);
 
   // create a new temp file for writing in the same directory
   var temp_file_name_buf: [1024]u8 = undefined;
   const temp_file_name = try std.fmt.bufPrint(&temp_file_name_buf, ".{s}.bak", .{ name });
-  const temp_file = try dir.createFile(temp_file_name, .{.lock = .exclusive });
-  defer temp_file.close();
+  const temp_file = try dir.createFile(io, temp_file_name, .{.lock = .exclusive });
+  defer temp_file.close(io);
 
   var line_write_buffer: [line_buf_len] u8 = undefined;
-  var writer = temp_file.writer(&line_write_buffer);
+  var writer = temp_file.writer(io, &line_write_buffer);
   var format_line_buffer: [line_buf_len] u8 = undefined;
 
   // read the file line by line...
@@ -138,8 +130,8 @@ fn fixIndentationForFile(input_file: std.fs.File, name: []const u8, dir: std.fs.
   try writer.interface.flush();
 
   // now replace the old file with the new file
-  _ = try std.fs.Dir.updateFile(dir, temp_file_name, dir, name, .{});
+  _ = try std.Io.Dir.updateFile(dir, io, temp_file_name, dir, name, .{});
 
   // and remove the temp file
-  try dir.deleteFile(temp_file_name);
+  try dir.deleteFile(io, temp_file_name);
 }

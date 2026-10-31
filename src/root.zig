@@ -62,17 +62,16 @@ pub fn formatLine(line: []const u8, buf: []u8, options: FormatOptions) FormatErr
 
   // print the output indentations
   const indent = options.output.type.toChar();
-  var fbs = std.Io.fixedBufferStream(buf);
-  var writer = fbs.writer();
+  var writer = std.Io.Writer.fixed(buf);
   for (0..indentations) |_| {
     for (0..options.output.len) |_| {
-      try writer.print("{c}", .{indent});
+      writer.print("{c}", .{indent}) catch return FormatError.NoSpaceLeft;
     }
   }
 
   // print the rest of the line
   const rest_start_index = indentations * options.input.len;
-  try writer.print("{s}", .{line[rest_start_index..]});
+  writer.print("{s}", .{line[rest_start_index..]}) catch return FormatError.NoSpaceLeft;
 
   // return the slice
   return buf[0..indentations*options.output.len + line.len - rest_start_index];

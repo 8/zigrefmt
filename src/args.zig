@@ -15,21 +15,21 @@ const parsers = .{
 
 const Result = clap.Result(clap.Help, &params, parsers);
 
-pub fn get(allocator: std.mem.Allocator) !Result {
+pub fn get(io: std.Io, arguments: std.process.Args, allocator: std.mem.Allocator) !Result {
 
   var diag = clap.Diagnostic{};
-  const res = clap.parse(clap.Help, &params, parsers, .{
+  const res = clap.parse(clap.Help, &params, parsers, arguments, .{
     .diagnostic = &diag,
     .allocator = allocator,
   }) catch |err| {
-    try diag.reportToFile(.stderr(), err);
+    try diag.reportToFile(io, .stderr(), err);
     return err;
   };
   return res;
 }
 
-pub fn printUsage() !void {
-  try std.fs.File.stderr().writeAll(
+pub fn printUsage(io: std.Io) !void {
+  try std.Io.File.stderr().writeStreamingAll(io,
     \\Usage: zigrefmt [file]...
     \\
     \\    Formats the input files and modifies them in-place.
@@ -45,5 +45,5 @@ pub fn printUsage() !void {
     \\Options:
     \\
   );
-  try clap.helpToFile(.stderr(), clap.Help, &params, .{});
+  try clap.helpToFile(io, .stderr(), clap.Help, &params, .{});
 }

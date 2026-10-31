@@ -16,7 +16,7 @@ Formats all files in the current folder and it's subfolders using an indentation
 ## Build
 Execute `zig build --release=small` to build the executable for your platform.
 
-Builds with zig version `0.15.1`
+Builds with zig version `0.17.0`
 
 ## Build & Install
 To install into ~/.local/bin/zigrefmt
