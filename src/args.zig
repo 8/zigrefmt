@@ -16,7 +16,6 @@ const parsers = .{
 const Result = clap.Result(clap.Help, &params, parsers);
 
 pub fn get(io: std.Io, arguments: std.process.Args, allocator: std.mem.Allocator) !Result {
-
   var diag = clap.Diagnostic{};
   const res = clap.parse(clap.Help, &params, parsers, arguments, .{
     .diagnostic = &diag,

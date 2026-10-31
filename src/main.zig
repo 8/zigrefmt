@@ -3,10 +3,9 @@ const zigrefmt = @import("zigrefmt");
 const args = @import("args.zig");
 const clap = @import("clap");
 
-const Error =  error { ZigFormatError, ArgError };
+const Error = error{ ZigFormatError, ArgError };
 
 pub fn main(init: std.process.Init) !void {
-
   const allocator = init.gpa;
   const io = init.io;
 
@@ -21,7 +20,7 @@ pub fn main(init: std.process.Init) !void {
     if (res.positionals[0]) |file_or_directory| {
 
       // parse the format from the commandline options
-      const format = 
+      const format =
         if (res.args.spaces) |spaces|
           zigrefmt.FormatOptions.toSpaces(spaces)
         else if (res.args.tabs) |tabs|
@@ -52,8 +51,7 @@ fn formatFiles(allocator: std.mem.Allocator, io: std.Io, file_or_directory: []co
 
 /// execute `zig fmt` with the provided file/directory
 fn execZigFmt(allocator: std.mem.Allocator, io: std.Io, file: []const u8) anyerror!void {
-
-  const argv = [_][]const u8{"zig", "fmt", file};
+  const argv = [_][]const u8{ "zig", "fmt", file };
 
   const result = try std.process.run(allocator, io, .{
     .argv = &argv,
@@ -71,11 +69,10 @@ fn execZigFmt(allocator: std.mem.Allocator, io: std.Io, file: []const u8) anyerr
 fn isZigFile(file: []const u8) bool {
   const extension = std.Io.Dir.path.extension(file);
   return std.mem.eql(u8, ".zig", extension) or
-         std.mem.eql(u8, ".zon", extension);
+    std.mem.eql(u8, ".zon", extension);
 }
 
 fn fixIndentationForPath(io: std.Io, dir: std.Io.Dir, path: []const u8, format: zigrefmt.FormatOptions) anyerror!void {
-
   const file_or_directory = try dir.openFile(io, path, .{});
   defer file_or_directory.close(io);
 
@@ -92,7 +89,6 @@ fn fixIndentationForPath(io: std.Io, dir: std.Io.Dir, path: []const u8, format: 
 }
 
 fn fixIndentationForDirectory(io: std.Io, directory: std.Io.Dir, format: zigrefmt.FormatOptions) anyerror!void {
-
   var iterator = directory.iterate();
   while (try iterator.next(io)) |entry| {
     try fixIndentationForPath(io, directory, entry.name, format);
@@ -104,18 +100,18 @@ fn fixIndentationForFile(io: std.Io, input_file: std.Io.File, name: []const u8, 
   // todo: move the function to root.zig to make it reusable?
   const line_buf_len = 1024 * 8;
 
-  var line_read_buffer: [line_buf_len] u8 = undefined;
+  var line_read_buffer: [line_buf_len]u8 = undefined;
   var reader = input_file.reader(io, &line_read_buffer);
 
   // create a new temp file for writing in the same directory
   var temp_file_name_buf: [1024]u8 = undefined;
-  const temp_file_name = try std.fmt.bufPrint(&temp_file_name_buf, ".{s}.bak", .{ name });
-  const temp_file = try dir.createFile(io, temp_file_name, .{.lock = .exclusive });
+  const temp_file_name = try std.fmt.bufPrint(&temp_file_name_buf, ".{s}.bak", .{name});
+  const temp_file = try dir.createFile(io, temp_file_name, .{ .lock = .exclusive });
   defer temp_file.close(io);
 
-  var line_write_buffer: [line_buf_len] u8 = undefined;
+  var line_write_buffer: [line_buf_len]u8 = undefined;
   var writer = temp_file.writer(io, &line_write_buffer);
-  var format_line_buffer: [line_buf_len] u8 = undefined;
+  var format_line_buffer: [line_buf_len]u8 = undefined;
 
   // read the file line by line...
   while (reader.interface.takeDelimiterInclusive('\n')) |line| {
@@ -123,7 +119,7 @@ fn fixIndentationForFile(io: std.Io, input_file: std.Io.File, name: []const u8, 
     const formatted_line = try zigrefmt.formatLine(line, &format_line_buffer, format);
     // ... and write it to the temp. file
     try writer.interface.writeAll(formatted_line);
-  } else |err|{
+  } else |err| {
     if (err != error.EndOfStream)
       return err;
   }

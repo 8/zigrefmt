@@ -19,7 +19,7 @@ pub const Format = struct {
   type: FormatType,
   len: usize,
 
-  pub const default: Format = Format { .type = .space, .len = 4 };
+  pub const default: Format = Format{ .type = .space, .len = 4 };
 };
 
 pub const FormatOptions = struct {
@@ -27,31 +27,27 @@ pub const FormatOptions = struct {
   output: Format = Format.default,
 
   pub fn toSpaces(len: usize) FormatOptions {
-    return FormatOptions {
-      .output = Format {
-        .type = .space,
-        .len = len,
-      }
-    };
+    return FormatOptions{ .output = Format{
+      .type = .space,
+      .len = len,
+    } };
   }
 
   pub fn toTabs(len: usize) FormatOptions {
-    return FormatOptions {
-      .output = Format {
-        .type = .tab,
-        .len = len,
-      }
-    };
+    return FormatOptions{ .output = Format{
+      .type = .tab,
+      .len = len,
+    } };
   }
 };
 
-pub const FormatError = error {
+pub const FormatError = error{
   /// The supplied input text was not found to be indented according the supplied input format.
   /// Did you run `zig fmt` before?
   InputFormatError,
 
   /// As much as possible was written to the buffer, but it was too small to fit all the printed bytes.
-  NoSpaceLeft
+  NoSpaceLeft,
 };
 
 /// Formats the line into buf given the supplied options
@@ -74,7 +70,7 @@ pub fn formatLine(line: []const u8, buf: []u8, options: FormatOptions) FormatErr
   writer.print("{s}", .{line[rest_start_index..]}) catch return FormatError.NoSpaceLeft;
 
   // return the slice
-  return buf[0..indentations*options.output.len + line.len - rest_start_index];
+  return buf[0 .. indentations * options.output.len + line.len - rest_start_index];
 }
 
 test "formatLine() outputs line if no indentation is detected" {
@@ -143,7 +139,7 @@ test "formatLine() fails if buf is not large enough" {
 
 fn getIndentationCharLength(indent: u8, line: []const u8) usize {
   var indentation_level: usize = 0;
-  for (line, 0..) |c,i| {
+  for (line, 0..) |c, i| {
     if (c != indent) {
       indentation_level = i;
       break;
