@@ -39,7 +39,11 @@ pub fn main(init: std.process.Init) !void {
   }
 }
 
-fn formatFiles(allocator: std.mem.Allocator, io: std.Io, file_or_directory: []const u8, format: zigrefmt.FormatOptions) !void {
+fn formatFiles(
+  allocator: std.mem.Allocator,
+  io: std.Io,
+  file_or_directory: []const u8,
+  format: zigrefmt.FormatOptions) !void {
 
   // first call `zig fmt` to format all files
   try execZigFmt(allocator, io, file_or_directory);
@@ -50,7 +54,11 @@ fn formatFiles(allocator: std.mem.Allocator, io: std.Io, file_or_directory: []co
 }
 
 /// execute `zig fmt` with the provided file/directory
-fn execZigFmt(allocator: std.mem.Allocator, io: std.Io, file: []const u8) anyerror!void {
+fn execZigFmt(
+  allocator: std.mem.Allocator,
+  io: std.Io,
+  file: []const u8) anyerror!void {
+
   const argv = [_][]const u8{ "zig", "fmt", file };
 
   const result = try std.process.run(allocator, io, .{
@@ -72,7 +80,11 @@ fn isZigFile(file: []const u8) bool {
     std.mem.eql(u8, ".zon", extension);
 }
 
-fn fixIndentationForPath(io: std.Io, dir: std.Io.Dir, path: []const u8, format: zigrefmt.FormatOptions) anyerror!void {
+fn fixIndentationForPath(
+  io: std.Io,
+  dir: std.Io.Dir,
+  path: []const u8, format: zigrefmt.FormatOptions) anyerror!void {
+
   const file_or_directory = try dir.openFile(io, path, .{});
   defer file_or_directory.close(io);
 
@@ -88,14 +100,24 @@ fn fixIndentationForPath(io: std.Io, dir: std.Io.Dir, path: []const u8, format: 
   };
 }
 
-fn fixIndentationForDirectory(io: std.Io, directory: std.Io.Dir, format: zigrefmt.FormatOptions) anyerror!void {
+fn fixIndentationForDirectory(
+  io: std.Io,
+  directory: std.Io.Dir,
+  format: zigrefmt.FormatOptions) anyerror!void {
+
   var iterator = directory.iterate();
   while (try iterator.next(io)) |entry| {
     try fixIndentationForPath(io, directory, entry.name, format);
   }
 }
 
-fn fixIndentationForFile(io: std.Io, input_file: std.Io.File, name: []const u8, dir: std.Io.Dir, format: zigrefmt.FormatOptions) !void {
+fn fixIndentationForFile(
+  io: std.Io,
+  input_file: std.Io.File,
+  name: []const u8,
+  dir: std.Io.Dir,
+  format: zigrefmt.FormatOptions) !void {
+
   // todo: pass the buffers into the function?
   // todo: move the function to root.zig to make it reusable?
   const line_buf_len = 1024 * 8;
